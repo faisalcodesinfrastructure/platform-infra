@@ -1,35 +1,39 @@
 # =============================================================================
-# Kind Cluster Configuration — v5 (Traefik replaces ingress-nginx)
+# Kind Cluster Configuration
 # File: platform-infra/cluster/kind-config.yaml
 #
 # NODE LAYOUT (4 nodes total):
 #
 #   control-plane         — API server, scheduler, etcd, port mappings
-#   worker (shared-svcs)  — Traefik v3, Flux controllers (shared services)
+#   worker (shared-svcs)  — Traefik, Flux controllers (shared services)
 #   worker (app-1)        — Airline API pods
 #   worker (app-2)        — PostgreSQL StatefulSet + PVC
 #
-# LABELS (applied by 03-bootstrap-cluster.sh):
+# LABELS (baked in via kubeletExtraArgs — no manual kubectl label needed):
 #   worker 1:  node-role=shared-services
+#              node-role.kubernetes.io/shared-services=
 #   worker 2:  node-role=app
+#              node-role.kubernetes.io/app=
 #   worker 3:  node-role=app
+#              node-role.kubernetes.io/app=
 #
-# TAINT on worker 1:
-#   node-role=shared-services:NoSchedule
-#   Any pod without a matching toleration is rejected by the scheduler.
+#   node-role=<value>
+#     Our custom label — used by nodeSelector in Helm charts and
+#     Flux controller patches to pin workloads to the right node tier.
+#
+#   node-role.kubernetes.io/<value>=
+#     The Kubernetes display label — makes kubectl get nodes show
+#     the ROLES column correctly instead of <none>.
+#
+# TAINT on worker 1 (applied after cluster creation — cannot be set here):
+#   kubectl taint node platform-local-worker node-role=shared-services:NoSchedule
 #
 # PORT MAPPINGS (control-plane → your Mac):
 #   localhost:8080  → cluster :80    HTTP  — airline app via Traefik
-#   localhost:8443  → cluster :443   HTTPS — airline app via Traefik
+#   localhost:8443  → cluster :443   HTTPS
 #   localhost:9090  → cluster :9090  Traefik dashboard
 #   localhost:30000 → cluster :30000 NodePort debug
 #   localhost:30001 → cluster :30001 NodePort debug
-#
-# WHY TRAEFIK INSTEAD OF ingress-nginx:
-#   Traefik v3 has native Gateway API support (future migration path),
-#   a built-in dashboard for visualising routes, lighter resource usage,
-#   and cleaner CRD-based configuration. ingress-nginx is maintained but
-#   not innovating as rapidly toward the Gateway API future.
 # =============================================================================
 
 kind: Cluster
@@ -41,8 +45,7 @@ nodes:
 
   # -------------------------------------------------------------------------
   # Control Plane
-  # Kubernetes system components. Labeled ingress-ready so Traefik's
-  # DaemonSet/Deployment can bind to the host port mappings below.
+  # Labeled ingress-ready so Traefik can bind to the host port mappings.
   # -------------------------------------------------------------------------
   - role: control-plane
     kubeadmConfigPatches:
@@ -52,19 +55,15 @@ nodes:
           kubeletExtraArgs:
             node-labels: "ingress-ready=true"
     extraPortMappings:
-      # HTTP — airline app at http://localhost:8080
       - containerPort: 80
         hostPort: 8080
         protocol: TCP
-      # HTTPS — airline app at https://localhost:8443
       - containerPort: 443
         hostPort: 8443
         protocol: TCP
-      # Traefik dashboard — http://localhost:9090/dashboard/
       - containerPort: 9090
         hostPort: 9090
         protocol: TCP
-      # NodePort debug slots
       - containerPort: 30000
         hostPort: 30000
         protocol: TCP
@@ -74,22 +73,40 @@ nodes:
 
   # -------------------------------------------------------------------------
   # Worker 1 — shared services
-  # Label:  node-role=shared-services
-  # Taint:  node-role=shared-services:NoSchedule
-  # Runs:   Traefik v3 (ingress), Flux controllers
+  # Scheduling label:  node-role=shared-services
+  # Display label:     node-role.kubernetes.io/shared-services=
+  # Taint applied after creation via kubectl taint (cannot be set here)
   # -------------------------------------------------------------------------
   - role: worker
+    kubeadmConfigPatches:
+      - |
+        kind: JoinConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "node-role=shared-services,node-role.kubernetes.io/shared-services="
 
   # -------------------------------------------------------------------------
   # Worker 2 — app tier (node 1 of 2)
-  # Label:  node-role=app
-  # Runs:   golden-app (airline API) pods
+  # Scheduling label:  node-role=app
+  # Display label:     node-role.kubernetes.io/app=
   # -------------------------------------------------------------------------
   - role: worker
+    kubeadmConfigPatches:
+      - |
+        kind: JoinConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "node-role=app,node-role.kubernetes.io/app="
 
   # -------------------------------------------------------------------------
   # Worker 3 — app tier (node 2 of 2)
-  # Label:  node-role=app
-  # Runs:   PostgreSQL StatefulSet + PersistentVolume
+  # Scheduling label:  node-role=app
+  # Display label:     node-role.kubernetes.io/app=
   # -------------------------------------------------------------------------
   - role: worker
+    kubeadmConfigPatches:
+      - |
+        kind: JoinConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "node-role=app,node-role.kubernetes.io/app="
