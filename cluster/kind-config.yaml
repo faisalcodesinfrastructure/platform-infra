@@ -1,0 +1,95 @@
+# =============================================================================
+# Kind Cluster Configuration — v5 (Traefik replaces ingress-nginx)
+# File: platform-infra/cluster/kind-config.yaml
+#
+# NODE LAYOUT (4 nodes total):
+#
+#   control-plane         — API server, scheduler, etcd, port mappings
+#   worker (shared-svcs)  — Traefik v3, Flux controllers (shared services)
+#   worker (app-1)        — Airline API pods
+#   worker (app-2)        — PostgreSQL StatefulSet + PVC
+#
+# LABELS (applied by 03-bootstrap-cluster.sh):
+#   worker 1:  node-role=shared-services
+#   worker 2:  node-role=app
+#   worker 3:  node-role=app
+#
+# TAINT on worker 1:
+#   node-role=shared-services:NoSchedule
+#   Any pod without a matching toleration is rejected by the scheduler.
+#
+# PORT MAPPINGS (control-plane → your Mac):
+#   localhost:8080  → cluster :80    HTTP  — airline app via Traefik
+#   localhost:8443  → cluster :443   HTTPS — airline app via Traefik
+#   localhost:9090  → cluster :9090  Traefik dashboard
+#   localhost:30000 → cluster :30000 NodePort debug
+#   localhost:30001 → cluster :30001 NodePort debug
+#
+# WHY TRAEFIK INSTEAD OF ingress-nginx:
+#   Traefik v3 has native Gateway API support (future migration path),
+#   a built-in dashboard for visualising routes, lighter resource usage,
+#   and cleaner CRD-based configuration. ingress-nginx is maintained but
+#   not innovating as rapidly toward the Gateway API future.
+# =============================================================================
+
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+
+name: platform-local
+
+nodes:
+
+  # -------------------------------------------------------------------------
+  # Control Plane
+  # Kubernetes system components. Labeled ingress-ready so Traefik's
+  # DaemonSet/Deployment can bind to the host port mappings below.
+  # -------------------------------------------------------------------------
+  - role: control-plane
+    kubeadmConfigPatches:
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "ingress-ready=true"
+    extraPortMappings:
+      # HTTP — airline app at http://localhost:8080
+      - containerPort: 80
+        hostPort: 8080
+        protocol: TCP
+      # HTTPS — airline app at https://localhost:8443
+      - containerPort: 443
+        hostPort: 8443
+        protocol: TCP
+      # Traefik dashboard — http://localhost:9090/dashboard/
+      - containerPort: 9090
+        hostPort: 9090
+        protocol: TCP
+      # NodePort debug slots
+      - containerPort: 30000
+        hostPort: 30000
+        protocol: TCP
+      - containerPort: 30001
+        hostPort: 30001
+        protocol: TCP
+
+  # -------------------------------------------------------------------------
+  # Worker 1 — shared services
+  # Label:  node-role=shared-services
+  # Taint:  node-role=shared-services:NoSchedule
+  # Runs:   Traefik v3 (ingress), Flux controllers
+  # -------------------------------------------------------------------------
+  - role: worker
+
+  # -------------------------------------------------------------------------
+  # Worker 2 — app tier (node 1 of 2)
+  # Label:  node-role=app
+  # Runs:   golden-app (airline API) pods
+  # -------------------------------------------------------------------------
+  - role: worker
+
+  # -------------------------------------------------------------------------
+  # Worker 3 — app tier (node 2 of 2)
+  # Label:  node-role=app
+  # Runs:   PostgreSQL StatefulSet + PersistentVolume
+  # -------------------------------------------------------------------------
+  - role: worker
