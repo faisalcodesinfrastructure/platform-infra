@@ -54,7 +54,8 @@ resource "kubernetes_secret" "db_credentials" {
     # DATABASE_URL is the full PostgreSQL connection string.
     # The Go app reads this single env var to connect to the database.
     # Format: postgres://username:password@host:port/dbname?sslmode=disable
-    "DATABASE_URL" = "postgres://${var.db_username}:${var.db_password}@${var.app_name}-postgresql:5432/${var.db_name}?sslmode=disable"
+    "DATABASE_URL" = "postgres://${var.db_username}:${var.db_password}@${var.app_name}-${var.app_name}-postgresql:5432/${var.db_name}?sslmode=disable"
+    # "DATABASE_URL" = "postgres://${var.db_username}:${var.db_password}@${var.app_name}-postgresql:5432/${var.db_name}?sslmode=disable"
 
     # Individual fields — useful for apps that construct the connection
     # string themselves or need separate credentials
