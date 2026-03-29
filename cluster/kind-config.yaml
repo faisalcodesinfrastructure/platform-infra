@@ -78,12 +78,12 @@ nodes:
   # Taint applied after creation via kubectl taint (cannot be set here)
   # -------------------------------------------------------------------------
   - role: worker
-    kubeadmConfigPatches:
-      - |
-        kind: JoinConfiguration
-        nodeRegistration:
-          kubeletExtraArgs:
-            node-labels: "node-role=shared-services,node-role.kubernetes.io/shared-services="
+  #  kubeadmConfigPatches:
+  #    - |
+  #      kind: JoinConfiguration
+  #      nodeRegistration:
+  #        kubeletExtraArgs:
+  #          node-labels: "node-role=shared-services,node-role.kubernetes.io/shared-services="
 
   # -------------------------------------------------------------------------
   # Worker 2 — app tier (node 1 of 2)
@@ -91,12 +91,12 @@ nodes:
   # Display label:     node-role.kubernetes.io/app=
   # -------------------------------------------------------------------------
   - role: worker
-    kubeadmConfigPatches:
-      - |
-        kind: JoinConfiguration
-        nodeRegistration:
-          kubeletExtraArgs:
-            node-labels: "node-role=app,node-role.kubernetes.io/app="
+  #  kubeadmConfigPatches:
+  #    - |
+  #      kind: JoinConfiguration
+  #      nodeRegistration:
+  #        kubeletExtraArgs:
+  #          node-labels: "node-role=app,node-role.kubernetes.io/app="
 
   # -------------------------------------------------------------------------
   # Worker 3 — app tier (node 2 of 2)
@@ -104,9 +104,9 @@ nodes:
   # Display label:     node-role.kubernetes.io/app=
   # -------------------------------------------------------------------------
   - role: worker
-    kubeadmConfigPatches:
-      - |
-        kind: JoinConfiguration
-        nodeRegistration:
-          kubeletExtraArgs:
-            node-labels: "node-role=app,node-role.kubernetes.io/app="
+  #  kubeadmConfigPatches:
+  #    - |
+  #      kind: JoinConfiguration
+  #      nodeRegistration:
+  #        kubeletExtraArgs:
+  #          node-labels: "node-role=app,node-role.kubernetes.io/app="

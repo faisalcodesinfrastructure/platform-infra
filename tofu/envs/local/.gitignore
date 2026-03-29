@@ -1,0 +1,9 @@
+# OpenTofu state files — contain sensitive data, never commit
+terraform.tfstate
+terraform.tfstate.backup
+.terraform/
+.terraform.lock.hcl
+
+# Local variable values — contain credentials
+terraform.tfvars
+*.auto.tfvars

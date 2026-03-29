@@ -155,6 +155,28 @@ Confirm `node-role=shared-services` on `platform-local-worker` and
 
 ---
 
+## Step 6b — Update the role of nodes
+
+```bash
+kubectl label node platform-local-worker \
+  node-role=shared-services \
+  node-role.kubernetes.io/shared-services=
+```
+
+```bash
+kubectl label node platform-local-worker2 \
+  node-role=app \
+  node-role.kubernetes.io/app=
+```
+
+```bash
+kubectl label node platform-local-worker3 \
+  node-role=app \
+  node-role.kubernetes.io/app=
+```
+
+
+
 ## Step 7 — taint the shared-services node
 
 Labels alone are advisory. The taint is the hard enforcement layer — the
@@ -242,13 +264,13 @@ helm install traefik traefik/traefik \
   --set "ports.websecure.exposedPort=443" \
   --set "ports.traefik.port=9090" \
   --set "ports.traefik.hostPort=9090" \
+  --set "ports.traefik.exposedPort=9090" \
   --set "ports.traefik.expose.default=true" \
   --set "service.type=ClusterIP" \
   --set "deployment.kind=DaemonSet" \
-  --set "nodeSelector.node-role=shared-services" \
-  --set "tolerations[0].key=node-role" \
-  --set "tolerations[0].operator=Equal" \
-  --set "tolerations[0].value=shared-services" \
+  --set-string "nodeSelector.ingress-ready=true" \
+  --set "tolerations[0].key=node-role.kubernetes.io/control-plane" \
+  --set "tolerations[0].operator=Exists" \
   --set "tolerations[0].effect=NoSchedule"
 ```
 
