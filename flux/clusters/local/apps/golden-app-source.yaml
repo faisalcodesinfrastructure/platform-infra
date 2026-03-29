@@ -1,0 +1,47 @@
+# =============================================================================
+# GitRepository — golden-app chart source
+# Location: platform-infra/flux/clusters/local/apps/golden-app-source.yaml
+#
+# A GitRepository tells Flux's source-controller where to find source
+# material — in this case the golden-app GitHub repo which contains
+# the Helm chart under helm/golden-app/.
+#
+# Flux source-controller will:
+#   1. Clone this repo
+#   2. Store a local artifact (tarball) of the contents
+#   3. Notify helm-controller that a new chart version is available
+#
+# Why a GitRepository and not a HelmRepository?
+# Our chart is not published to a Helm registry (like Artifact Hub).
+# It lives directly in the application repo alongside the Go code.
+# GitRepository is the correct source type for this pattern.
+# =============================================================================
+
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: golden-app
+  # All Flux source resources live in flux-system namespace
+  # regardless of where the app itself is deployed
+  namespace: flux-system
+spec:
+  # How often Flux checks for new commits on the branch
+  # 1m means Flux pulls every minute — reasonable for local development
+  # In production 5m or 10m is common to reduce GitHub API calls
+  interval: 1m
+
+  # The GitHub repo containing the Helm chart
+  # Replace faisalcodesinfrastructure with your actual GitHub username
+  url: https://github.com/faisalcodesinfrastructure/golden-app.git
+
+  # Which branch to watch
+  ref:
+    branch: main
+
+  # ignore tells Flux which files to ignore when checking for changes.
+  # We ignore Go source files — Flux only needs the Helm chart.
+  # A change to main.go alone should not trigger a Helm reconciliation.
+  # The CI pipeline handles that by updating values.yaml with the new image tag.
+  ignore: |
+    /*
+    !/helm/

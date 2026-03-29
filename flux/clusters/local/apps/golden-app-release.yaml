@@ -1,0 +1,91 @@
+# =============================================================================
+# HelmRelease — golden-app deployment
+# Location: platform-infra/flux/clusters/local/apps/golden-app-release.yaml
+#
+# A HelmRelease tells Flux's helm-controller to deploy a Helm chart.
+# It is the GitOps equivalent of running:
+#   helm install golden-app ./helm/golden-app --namespace golden-app
+#
+# Flux helm-controller watches this resource and ensures the cluster
+# state always matches what is declared here. If the chart changes,
+# Flux upgrades the release. If the release is deleted from the cluster
+# manually, Flux reinstalls it. Git is always the source of truth.
+# =============================================================================
+
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: golden-app
+  # HelmRelease lives in flux-system — Flux manages it from there
+  # but deploys the actual resources into the target namespace below
+  namespace: flux-system
+spec:
+  # How often Flux reconciles this release.
+  # If someone manually changes the deployment, Flux will revert it
+  # within this interval. This is the self-healing property of GitOps.
+  interval: 5m
+
+  # The chart to deploy
+  chart:
+    spec:
+      # Name of the chart directory inside the repo
+      chart: helm/golden-app
+
+      # Which version of the chart to use.
+      # * means always use the latest version from the source.
+      # In production you would pin to a specific chart version: "0.1.0"
+      version: "*"
+
+      # Reference to the GitRepository source defined in golden-app-source.yaml
+      # sourceRef connects this HelmRelease to its chart source
+      sourceRef:
+        kind: GitRepository
+        name: golden-app
+        namespace: flux-system
+
+      # How often to check the source for chart changes
+      interval: 1m
+
+  # The namespace to deploy the Helm chart into.
+  # This is where the actual pods, services, and ingress are created.
+  # Must match the namespace created by OpenTofu in Phase 1.
+  targetNamespace: golden-app
+
+  # Create the target namespace if it does not exist.
+  # Since OpenTofu already created it this is a safety net only.
+  install:
+    createNamespace: false
+    # remediation controls what happens if the install fails.
+    # retries: 3 means Flux will retry 3 times before giving up.
+    remediation:
+      retries: 3
+
+  upgrade:
+    # remediation for upgrades — if an upgrade fails, roll back
+    remediation:
+      retries: 3
+      remediateLastFailure: true
+
+  # values override the chart's default values.yaml.
+  # Here we can set any value from helm/golden-app/values.yaml.
+  # These values take precedence over the defaults in the chart.
+  values:
+    # Use the latest image tag for now.
+    # Phase 4 (CI pipeline) will update this to the actual built image tag.
+    image:
+      repository: ghcr.io/faisalcodesinfrastructure/golden-app
+      tag: "latest"
+      pullPolicy: Always
+
+    # Target the app nodes for scheduling
+    nodeSelector:
+      node-role: app
+
+    # Resource limits appropriate for local Kind development
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 256Mi

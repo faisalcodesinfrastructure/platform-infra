@@ -1,0 +1,20 @@
+# =============================================================================
+# Kustomization — apps folder
+# Location: platform-infra/flux/clusters/local/apps/kustomization.yaml
+#
+# This file tells Flux's kustomize-controller to apply all YAML files
+# in this directory. Without it, Flux does not know this folder exists.
+#
+# Kustomize is a tool for customising Kubernetes manifests.
+# In its simplest form (like here) it just applies all listed resources.
+# In more advanced usage it can patch, transform, and overlay resources.
+# =============================================================================
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  # List every manifest file in this folder.
+  # Order matters — source must come before release so Flux
+  # knows where to find the chart before trying to deploy it.
+  - golden-app-source.yaml
+  - golden-app-release.yaml
